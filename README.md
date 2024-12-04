@@ -2,4 +2,4 @@
 - python
 
 ### Command:
-`python laravel-ignition-rce.py <url> <command>`
+`python laravel-ignition-rce.py <url> "<command>"`

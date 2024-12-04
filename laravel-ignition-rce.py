@@ -136,9 +136,9 @@ def main(url, command):
 
 if len(sys.argv) <= 2:
     print(
-        f'Usage: {sys.argv[0]} <url> <command_to_execute>\n'
+        f'Usage: {sys.argv[0]} <url> "<command_to_execute>"\n'
         'Example:\n'
-        '  $ ./laravel-ignition-rce.py http://127.0.0.1:8000/ id\n'
+        '  $ ./laravel-ignition-rce.py http://127.0.0.1:8000/ "id"\n'
     )
     exit()
 
